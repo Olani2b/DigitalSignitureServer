@@ -13,36 +13,25 @@ A secure client-server system for digital signatures, supporting user registrati
 
 ---
 
-## Build Instructions
-
-1. **Clone or download the repository.**
-2. In the project directory, run:
-   ```sh
-   make
-   ```
-   This will build the following executables:
-   - `dss` (the server)
-   - `client` (the client)
-   - `register_user` (the user registration tool)
-
----
-
 ## Initial Setup
 
-### 1. Generate Server Keypair
+### 1. Run the Setup Script
 
-Before running the server, generate the server's RSA keypair:
+You can use the provided script to generate the server's RSA keypair (if missing), build the project, and start the server:
 
 ```sh
-mkdir -p keys
-openssl genpkey -algorithm RSA -out keys/server_priv.pem -pkeyopt rsa_keygen_bits:2048
-openssl rsa -pubout -in keys/server_priv.pem -out keys/server_pub.pem
+./run.sh
 ```
+
+This will:
+- Create the `keys/server_priv.pem` and `keys/server_pub.pem` files if they do not exist.
+- Build all necessary executables.
+- Start the server.
 
 ### 2. Register Users
 
 Before a user can log in, they must be registered by an administrator.  
-Run the registration tool for each user:
+Run the registration tool for each user (in a **separate terminal**):
 
 ```sh
 ./register_user <username> <password>
@@ -56,11 +45,12 @@ This will append the user to `users.txt` and set their initial password.
 
 ### 1. Start the Server
 
+If you used `./run.sh`, the server is already running.  
+Otherwise, you can start it manually:
+
 ```sh
 ./dss
 ```
-
-The server will listen for incoming client connections.
 
 ### 2. Start the Client
 
@@ -112,6 +102,3 @@ make clean
 
 ---
 
-## License
-
-[Your License Here] 
