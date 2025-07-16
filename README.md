@@ -112,6 +112,3 @@ make clean
 
 ---
 
-## License
-
-[Your License Here] 
