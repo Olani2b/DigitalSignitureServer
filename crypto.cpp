@@ -202,10 +202,10 @@ bool derive_user_key(const std::string& user, const std::string& password, unsig
     unsigned char salt_bytes[16];
     for (int i = 0; i < 16; ++i)
         salt_bytes[i] = std::stoi(kdf_salt.substr(i*2,2), nullptr, 16);
-    // Derive key and IV using PBKDF2
+
     if (!PKCS5_PBKDF2_HMAC_SHA1(password.c_str(), password.size(), salt_bytes, 16, 10000, 32, key))
         return false;
-    // Generate random IV for encryption, or use a fixed IV for decryption (should be stored with ciphertext)
+
     RAND_bytes(iv, 16);
     return true;
 }
@@ -218,7 +218,7 @@ bool aes_encrypt_pem(const std::string& in_pem, const unsigned char* key, const 
     EVP_EncryptUpdate(ctx, (unsigned char*)&outbuf[0], &outlen1, (const unsigned char*)in_pem.data(), in_pem.size());
     EVP_EncryptFinal_ex(ctx, (unsigned char*)&outbuf[0] + outlen1, &outlen2);
     EVP_CIPHER_CTX_free(ctx);
-    out_enc.assign((const char*)iv, 16); // prepend IV
+    out_enc.assign((const char*)iv, 16); 
     out_enc.append(outbuf.data(), outlen1 + outlen2);
     return true;
 }

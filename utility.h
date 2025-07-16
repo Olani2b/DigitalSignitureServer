@@ -24,7 +24,6 @@ bool receive_message_gcm(
   int fd, unsigned char *&plaintext, int &pt_len,
   const unsigned char *key);
 
-// Authenticated: prepend HMAC or reuse GCM
 bool send_auth_and_encrypted_message(
   int fd, const network_message &msg,
   const unsigned char *session_key);

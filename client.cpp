@@ -8,8 +8,8 @@
 #include <vector>
 #include <openssl/crypto.h>  
 #include <openssl/rand.h>
-#include <fstream> // Added for file reading
-#include <sys/stat.h> // for stat and S_ISDIR
+#include <fstream> 
+#include <sys/stat.h> 
 using namespace std;
 
 int main(int argc, char** argv) {
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
     EVP_PKEY* peer = EVP_PKEY_new();
     EVP_PKEY_assign_DH(peer, pdh);
 
-    // derive shared secret (correct argument order)
+    // derive shared secret 
     unsigned char* secret = nullptr;
     size_t secret_len = 0;
     derive_dh_shared_secret(peer, mydh, secret, secret_len);
@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
         cout << "  help             - Show this help menu" << endl;
         cout << "  exit             - Quit the application" << endl;
     };
-    // Only show help after successful login
+
     print_help();
 
     // --- Interactive command loop ---
@@ -198,21 +198,21 @@ int main(int argc, char** argv) {
                 cout << "ERROR: sign command requires a document argument" << endl;
                 continue;
             }
-            // Check if the argument is a directory
+       
             struct stat s;
             if (stat(doc.c_str(), &s) == 0 && S_ISDIR(s.st_mode)) {
                 cout << "ERROR: '" << doc << "' is a directory, not a file." << endl;
                 continue;
             }
-            // Try to open the file
+          
             ifstream infile(doc);
             string content;
             if (infile.is_open()) {
-                // Read the whole file into content
+                
                 content.assign((istreambuf_iterator<char>(infile)), istreambuf_iterator<char>());
                 infile.close();
             } else {
-                // If file doesn't exist, just use the string as is
+             
                 content = doc;
             }
             req.command = SIGN_COMMAND;

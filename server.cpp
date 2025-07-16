@@ -51,8 +51,6 @@ void Server::start(){
 
         // —— Perform DH handshake immediately ——
         EVP_PKEY* mydh = generate_dh_keypair();
-
-        // send my raw public key
         const DH* dh = EVP_PKEY_get0_DH(mydh);
         const BIGNUM* pubkey = nullptr;
         DH_get0_key(dh, &pubkey, nullptr);
@@ -63,14 +61,11 @@ void Server::start(){
         send_raw(newfd, (unsigned char*)&netlen, sizeof(netlen));
         send_raw(newfd, pubbuf, publen);
 
-        // receive peer public key
         uint32_t peerlen;
         recv_raw(newfd, (unsigned char*)&peerlen, 4);
         peerlen = ntohl(peerlen);
         unsigned char *peerbuf = (unsigned char*)malloc(peerlen);
         recv_raw(newfd, peerbuf, peerlen);
-
-        // Legacy DH API to reconstruct peer key
         const DH* dh_params = EVP_PKEY_get0_DH(mydh);
         const BIGNUM *p = nullptr, *g = nullptr;
         DH_get0_pqg(dh_params, &p, nullptr, &g);
@@ -94,8 +89,6 @@ void Server::start(){
         authenticated[std::to_string(newfd)] = false;
         FD_SET(newfd, &master);
         if(newfd > fdmax) fdmax = newfd;
-
-        // After DH handshake, handle server authentication challenge/response
         network_message nm;
         if (!receive_auth_and_encrypted_message(newfd, nm, session_key)) {
           close(newfd); FD_CLR(newfd, &master);
@@ -118,15 +111,12 @@ void Server::start(){
           free(sig);
           network_message sig_msg{0, CMD_SERVER_AUTH, (uint16_t)sig_str.size(), sig_str};
           send_auth_and_encrypted_message(newfd, sig_msg, session_key);
-          // Now proceed to normal authentication (username/password)
         } else {
-          // Unexpected first message, close connection
           close(newfd); FD_CLR(newfd, &master);
           continue;
         }
 
       } else {
-        // Already connected: receive first auth or commands
         network_message nm;
         if(!receive_auth_and_encrypted_message(i, nm, session_key)){
           close(i); FD_CLR(i, &master);
@@ -135,7 +125,6 @@ void Server::start(){
 
         std::string client_id = std::to_string(i);
         if(!authenticated[client_id]){
-          // first message must be username:password
           std::istringstream upiss(nm.content);
           std::string user, pass;
           std::getline(upiss, user, '|');
@@ -152,7 +141,6 @@ void Server::start(){
                 std::getline(iss, hash, ':') &&
                 std::getline(iss, first_login, ':') &&
                 std::getline(iss, kdf_salt)) {
-              // Trim whitespace from first_login before comparing
               first_login.erase(first_login.find_last_not_of(" \r\n\t") + 1);
               if (username == user) {
                 std::string salted = pass + salt;
@@ -178,7 +166,6 @@ void Server::start(){
           if (must_change) {
             network_message resp{0, CMD_CHANGE_PASSWORD, 0, ""};
             send_auth_and_encrypted_message(i, resp, session_key);
-            // Wait for new password
             network_message nm2;
             if (!receive_auth_and_encrypted_message(i, nm2, session_key)) {
               close(i); FD_CLR(i, &master);
@@ -197,7 +184,6 @@ void Server::start(){
             send_auth_and_encrypted_message(i, resp, session_key);
           }
         } else {
-          // handle post-login commands
           switch(nm.command){
             case CREATEKEYS_COMMAND: handle_createkeys(i, nm); break;
             case SIGN_COMMAND:       handle_signdoc(i, nm);    break;
@@ -216,7 +202,6 @@ void Server::start(){
 
 // —— Helpers for user/password storage ——————————————————————————————
 bool Server::load_users(){
-  // implement reading USERS_FILE into memory
   return true;
 }
 bool Server::verify_password(const std::string& u, const std::string& p) {
@@ -238,15 +223,14 @@ bool Server::verify_password(const std::string& u, const std::string& p) {
                     oss << std::hex << std::setw(2) << std::setfill('0') << (int)digest[i];
                 if (oss.str() == hash) {
                     if (first_login == "1") {
-                        // Password correct, but must change
-                        return false; // Indicate must change password
+                        return false; 
                     }
-                    return true; // Password correct
+                    return true; 
                 }
             }
         }
     }
-    return false; // Not found or incorrect
+    return false; 
 }
 
 bool Server::update_password(const std::string& u, const std::string& p) {
@@ -263,7 +247,6 @@ bool Server::update_password(const std::string& u, const std::string& p) {
             std::getline(iss, first_login, ':') &&
             std::getline(iss, kdf_salt)) {
             if (username == u) {
-                // Update password, preserve kdf_salt
                 unsigned char new_salt_bytes[16];
                 RAND_bytes(new_salt_bytes, 16);
                 std::ostringstream saltoss;
@@ -305,14 +288,14 @@ void Server::handle_createkeys(int fd, const network_message& nm){
     return;
   }
   EVP_PKEY* kp = generate_rsa_keypair();
-  // Serialize private key to PEM string (no passphrase)
+ 
   BIO* mem = BIO_new(BIO_s_mem());
   PEM_write_bio_PrivateKey(mem, kp, NULL, NULL, 0, NULL, NULL);
   char* pem_data = nullptr;
   long pem_len = BIO_get_mem_data(mem, &pem_data);
   std::string priv_pem(pem_data, pem_len);
   BIO_free(mem);
-  // Derive key and encrypt
+
   std::string password = user_passwords[client_id];
   unsigned char key[32], iv[16];
   bool kdf_ok = derive_user_key(user, password, key, iv);
@@ -332,7 +315,7 @@ void Server::handle_createkeys(int fd, const network_message& nm){
   } else {
     printf("[DEBUG] Failed to open %s for writing!\n", outpath.c_str());
   }
-  // Only write the public key as PEM
+
   write_public_pem(kp, KEY_DIR + user + "_pub.pem");
   EVP_PKEY_free(kp);
   network_message r{nm.nonce, CMD_OK, 0, ""};
@@ -340,7 +323,7 @@ void Server::handle_createkeys(int fd, const network_message& nm){
 }
 
 void Server::handle_signdoc(int fd, const network_message& nm){
-  // Parse user and document (supporting multi-line docs)
+  // Parse user and document 
   size_t sep = nm.content.find('|');
   if (sep == std::string::npos) {
     network_message r{nm.nonce, CMD_ERROR, 0, "Malformed sign request"};
@@ -416,7 +399,7 @@ void Server::handle_getpub(int fd, const network_message& nm){
     send_auth_and_encrypted_message(fd, r, session_key);
     return;
   }
-  // Now check for the public key file
+  // check for the public key file
   std::string path = KEY_DIR + username + "_pub.pem";
   std::ifstream f(path);
   if (!f.is_open()) {
@@ -432,7 +415,7 @@ void Server::handle_getpub(int fd, const network_message& nm){
 
 void Server::handle_delete(int fd, const network_message& nm){
   std::string u = nm.content;
-  // Delete both private and public key files, no error if not found
+  // Delete both private and public key files
   remove((KEY_DIR + u + "_priv.pem.enc").c_str());
   remove((KEY_DIR + u + "_pub.pem").c_str());
   network_message r{nm.nonce, CMD_OK, 0, ""};

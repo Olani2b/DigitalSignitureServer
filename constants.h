@@ -13,7 +13,7 @@
 #define CMD_ERROR            11
 
 // ---- Crypto parameters ----
-#define AES_KEY_SIZE         16  // 128 bits
+#define AES_KEY_SIZE         16  
 #define AES_GCM_IV_SIZE      12
 #define AES_GCM_TAG_SIZE     16
 #define DH_KEY_SIZE          2048
