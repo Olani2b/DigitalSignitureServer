@@ -81,12 +81,15 @@ void Server::start(){
         // derive AES key
         unsigned char *secret; size_t seclen;
         derive_dh_shared_secret(peerkey, mydh, secret, seclen);
-        memcpy(session_key, secret, AES_KEY_SIZE);
+        unsigned char hash[32];
+        SHA256(secret, seclen, hash);
+        memcpy(session_key, hash, AES_KEY_SIZE); // Use first 16 bytes for AES-128
         free(secret);
         EVP_PKEY_free(mydh);
         EVP_PKEY_free(peerkey);
 
         authenticated[std::to_string(newfd)] = false;
+        last_seen_nonce[std::to_string(newfd)] = 0; // Initialize for new connection
         FD_SET(newfd, &master);
         if(newfd > fdmax) fdmax = newfd;
         network_message nm;
@@ -124,6 +127,16 @@ void Server::start(){
         }
 
         std::string client_id = std::to_string(i);
+        uint16_t received_nonce = nm.nonce;
+        if (last_seen_nonce[client_id] > 0 && last_seen_nonce[client_id] >= received_nonce) {
+            // Replay detected (but allow first message with nonce 0)
+            network_message r{received_nonce, CMD_ERROR, 0, "Replay detected"};
+            send_auth_and_encrypted_message(i, r, session_key);
+            close(i); FD_CLR(i, &master);
+            continue;
+        }
+        last_seen_nonce[client_id] = received_nonce;
+
         if(!authenticated[client_id]){
           std::istringstream upiss(nm.content);
           std::string user, pass;

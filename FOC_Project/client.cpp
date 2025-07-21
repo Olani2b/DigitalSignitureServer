@@ -24,12 +24,6 @@ int main(int argc, char** argv) {
     getline(cin, port_str);
     if (port_str.empty()) port = 5252;
     else port = atoi(port_str.c_str());
-    cout << "Username: ";
-    getline(cin, user);
-    if (user.empty()) {
-        cout << "Username is required." << endl;
-        return 1;
-    }
 
     // --- connect to server ---
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -80,8 +74,10 @@ int main(int argc, char** argv) {
     unsigned char* secret = nullptr;
     size_t secret_len = 0;
     derive_dh_shared_secret(peer, mydh, secret, secret_len);
+    unsigned char hash[32];
+    SHA256(secret, secret_len, hash);
     unsigned char session_key[AES_KEY_SIZE];
-    memcpy(session_key, secret, AES_KEY_SIZE);
+    memcpy(session_key, hash, AES_KEY_SIZE); // Use first 16 bytes for AES-128
     free(secret);
     EVP_PKEY_free(mydh);
     EVP_PKEY_free(peer);
@@ -114,6 +110,16 @@ int main(int argc, char** argv) {
     EVP_PKEY_free(server_pub);
     if (!ok) {
         cerr << "Server authentication failed!" << endl;
+        close(fd);
+        return 1;
+    }
+    cout << "Server authenticated." << endl;
+
+    // Prompt for username after server authentication
+    cout << "Username: ";
+    getline(cin, user);
+    if (user.empty()) {
+        cout << "Username is required." << endl;
         close(fd);
         return 1;
     }

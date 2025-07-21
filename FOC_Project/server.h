@@ -11,6 +11,7 @@ class Server {
   EVP_PKEY *dh_priv, *dh_peer;
   std::map<std::string,bool> authenticated;
   std::map<std::string,std::string> user_passwords;
+  std::map<std::string, uint16_t> last_seen_nonce; // For replay protection
 
   // Helper storage:
   bool load_users();
